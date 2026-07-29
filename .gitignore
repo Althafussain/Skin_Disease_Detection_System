@@ -1,0 +1,38 @@
+# Python virtual environments
+.venv/
+.venv311/
+venv/
+env/
+
+# Python bytecode / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment / secrets (defensive - none currently present in this project)
+.env
+.env.*
+*.pem
+*.key
+
+# macOS metadata
+.DS_Store
+._*
+
+# Frontend build output and dependencies (regenerable via npm install / npm run build)
+frontend/node_modules/
+frontend/dist/
+frontend/package-lock.json.bak.*
+
+# Superseded/duplicate model checkpoints (not referenced by any code path)
+Bacterial_Skin_Disease/bacterial_model_old.pth
+Parastic_Skin_Disease/checkpoints/parasitic_local_old.pth
+
+# Unused duplicate data folder (not read by any application code; also contains a
+# file over GitHub's 100MB per-file limit)
+text data/
+
+# Editor/IDE
+.idea/
+.vscode/
