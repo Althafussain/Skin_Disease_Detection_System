@@ -103,14 +103,29 @@ def final_predict(payload: SymptomFinalPredictRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...), topk: int = Query(5, ge=1, le=20)):
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="No file selected")
 
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{file.content_type}'. Allowed types: JPEG, PNG, WEBP, BMP.",
+        )
+
     image_bytes = await file.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    if len(image_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Uploaded file exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)}MB size limit.",
+        )
 
     try:
         return predictor.predict_from_bytes(image_bytes, topk=topk)
@@ -118,3 +133,7 @@ async def predict(file: UploadFile = File(...), topk: int = Query(5, ge=1, le=20
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except OSError as exc:
+        # Pillow raises UnidentifiedImageError (an OSError subclass) for corrupted
+        # or non-image byte streams that pass the content-type check above.
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid or readable image.") from exc

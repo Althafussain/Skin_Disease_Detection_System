@@ -6,7 +6,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 const NEUTRAL_LABELS = new Set(['normal', 'normal skin', 'normalskin', 'healthy', 'none', 'skin not found'])
 const NEUTRAL_SUPPRESS_THRESHOLD = 0.8
 
-function confidenceToFraction(value) {
+export function confidenceToFraction(value) {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) {
     return 0
@@ -17,11 +17,11 @@ function confidenceToFraction(value) {
   return Math.max(0, Math.min(1, numeric))
 }
 
-function formatPercent(value) {
+export function formatPercent(value) {
   return `${(confidenceToFraction(value) * 100).toFixed(2)}%`
 }
 
-function toLabel(value) {
+export function toLabel(value) {
   return String(value || '')
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -29,7 +29,7 @@ function toLabel(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-function normalizeLabel(value) {
+export function normalizeLabel(value) {
   return String(value || '')
     .toLowerCase()
     .replace(/[_-]+/g, ' ')
@@ -37,24 +37,24 @@ function normalizeLabel(value) {
     .trim()
 }
 
-function isNeutralPrediction(value) {
+export function isNeutralPrediction(value) {
   return NEUTRAL_LABELS.has(normalizeLabel(value))
 }
 
-function hasHighConfidenceNeutral(rows, threshold = NEUTRAL_SUPPRESS_THRESHOLD) {
+export function hasHighConfidenceNeutral(rows, threshold = NEUTRAL_SUPPRESS_THRESHOLD) {
   return rows.some(
     (row) => isNeutralPrediction(row.prediction) && confidenceToFraction(row.confidence) >= threshold
   )
 }
 
-function splitKeywordText(raw) {
+export function splitKeywordText(raw) {
   return String(raw || '')
     .split(/[,\n;/]+/)
     .map((chunk) => chunk.trim())
     .filter(Boolean)
 }
 
-function uniqueList(values) {
+export function uniqueList(values) {
   return Array.from(new Set(values))
 }
 
