@@ -149,23 +149,10 @@ def main():
 
         script_path = base_dir / script_rel_path
         script_dir = script_path.parent
-        try:
-            result = subprocess.run(
-                [sys.executable, str(script_path)],
-                cwd=script_dir,
-                capture_output=True,
-                text=True,
-                timeout=1800,  # 30 minutes timeout
-            )
-            print(result.stdout)
-            if result.stderr:
-                print("STDERR:", result.stderr)
-            if result.returncode != 0:
-                print(f"WARNING: {disease_name} training returned code {result.returncode}")
-        except subprocess.TimeoutExpired:
-            print(f"ERROR: {disease_name} training timed out")
-        except Exception as e:
-            print(f"ERROR: {disease_name} training failed: {e}")
+        subprocess.run(
+            [sys.executable, str(script_path)],
+            cwd=script_dir,
+        )
 
     print("\n" + "=" * 60)
     print("All training complete!")

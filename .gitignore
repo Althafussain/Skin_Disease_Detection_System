@@ -36,3 +36,7 @@ text data/
 # Editor/IDE
 .idea/
 .vscode/
+
+# Datasets
+DS/
+*-Dataset/
