@@ -1166,37 +1166,71 @@ export default function App() {
         <section className="panel result-card">
           <h2>Top-5 Result</h2>
           {!predictResult ? (
-            <div className="empty-box">Run prediction to view top-5 disease probabilities.</div>
+            <div className="empty-box">Run prediction to view top-5 screening scores.</div>
           ) : (
             <>
               <div className="result-summary">
                 <p>
-                  Predicted disease: <strong>{toLabel(predictResult.prediction)}</strong>
+                  Predicted disease:{' '}
+                  <strong>
+                    {predictResult.prediction
+                      ? toLabel(predictResult.prediction)
+                      : 'No reliable prediction available'}
+                  </strong>
                 </p>
                 <p>
-                  Confidence: <strong>{formatPercent(predictResult.confidence)}</strong>
+                  Model score: <strong>{formatPercent(predictResult.confidence)}</strong>
                 </p>
+                {predictResult.evaluation_accuracy != null && (
+                  <p>
+                    Held-out test accuracy:{' '}
+                    <strong>{formatPercent(predictResult.evaluation_accuracy)}</strong>
+                  </p>
+                )}
+                {Object.entries(predictResult.evaluation_accuracy_by_group || {}).map(
+                  ([group, accuracy]) => (
+                    <p key={group}>
+                      {toLabel(group)} test accuracy: <strong>{formatPercent(accuracy)}</strong>
+                    </p>
+                  )
+                )}
                 <p>
-                  Inference: <strong>FedAvg Global (4 clients)</strong>
+                  Inference:{' '}
+                  <strong>
+                    {predictResult.model_name || 'Unified skin disease classifier'}
+                  </strong>
                 </p>
+                <p>AI screening estimates are not a medical diagnosis. Confirm concerns with a clinician.</p>
               </div>
 
-              <ul className="score-list">
-                {topPredictions.map((row, index) => {
-                  const width = `${(confidenceToFraction(row.confidence) * 100).toFixed(2)}%`
-                  return (
-                    <li key={`${row.prediction}-${index}`}>
-                      <div className="score-head">
-                        <span>{toLabel(row.prediction)}</span>
-                        <span>{formatPercent(row.confidence)}</span>
-                      </div>
-                      <div className="bar-track">
-                        <div className="bar-fill" style={{ width }} />
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+              {topPredictions.length > 0 ? (
+                <ul className="score-list">
+                  {topPredictions.map((row, index) => {
+                    const width = `${(confidenceToFraction(row.confidence) * 100).toFixed(2)}%`
+                    return (
+                      <li key={`${row.prediction}-${index}`}>
+                        <div className="score-head">
+                          <span>{toLabel(row.prediction)}</span>
+                          <span>{formatPercent(row.confidence)}</span>
+                        </div>
+                        <div className="bar-track">
+                          <div className="bar-fill" style={{ width }} />
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <div className="empty-box">
+                  No available classifier could distinguish a disease for this image.
+                </div>
+              )}
+
+              {Object.entries(predictResult.model_warnings || {}).map(([model, warning]) => (
+                <p className="subtitle" key={model}>
+                  {toLabel(model)} model: {warning}
+                </p>
+              ))}
             </>
           )}
         </section>

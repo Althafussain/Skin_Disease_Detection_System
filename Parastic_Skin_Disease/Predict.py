@@ -127,6 +127,17 @@ def preprocess_pil(pil_img):
 @torch.no_grad()
 def predict_from_pil(pil_img, model_path=DEFAULT_MODEL_PATH, topk=3):
     model, classes, _ = get_model(model_path=model_path)
+    if len(classes) < 2:
+        return {
+            "prediction": None,
+            "confidence": 0.0,
+            "topk": [],
+            "warning": (
+                "This classifier has fewer than two output classes and cannot distinguish diseases. "
+                "Retrain it with at least two representative classes."
+            ),
+        }
+
     x = preprocess_pil(pil_img)
     logits = model(x)
     probs = torch.softmax(logits, dim=1).squeeze(0)
@@ -161,6 +172,10 @@ def predict_from_path(image_path, model_path=DEFAULT_MODEL_PATH, topk=3):
 
 
 def predict(model, image_path, classes=None):
+    local_classes = classes if classes is not None else _classes_from_train_dir(TRAIN_DIR)
+    if len(local_classes) < 2:
+        return "Prediction unavailable: classifier has fewer than two output classes."
+
     input_tensor = preprocess_image(image_path)
     with torch.no_grad():
         output = model(input_tensor)
@@ -168,7 +183,6 @@ def predict(model, image_path, classes=None):
         predicted_idx = torch.argmax(probabilities, dim=1).item()
         confidence = float(probabilities[0][predicted_idx].item()) * 100.0
 
-    local_classes = classes if classes is not None else _classes_from_train_dir(TRAIN_DIR)
     subclass_name = local_classes[predicted_idx]
     return f"({subclass_name}) - {confidence:.2f}% confidence"
 

@@ -28,6 +28,7 @@ frontend/package-lock.json.bak.*
 # Superseded/duplicate model checkpoints (not referenced by any code path)
 Bacterial_Skin_Disease/bacterial_model_old.pth
 Parastic_Skin_Disease/checkpoints/parasitic_local_old.pth
+unified_skin_model.pth
 
 # Unused duplicate data folder (not read by any application code; also contains a
 # file over GitHub's 100MB per-file limit)

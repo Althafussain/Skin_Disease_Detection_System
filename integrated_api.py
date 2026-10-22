@@ -4,21 +4,13 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from multi_model_predictor import MultiModelFedAvgPredictor
+from unified_skin_classifier import UnifiedSkinPredictor
 from symptoms_engine import SymptomRefinementEngine
 
 
 BASE_DIR = Path(__file__).resolve().parent
 
-predictor = MultiModelFedAvgPredictor(
-    model_paths={
-        # Directory paths are accepted for viral/parasitic and resolved to checkpoint files.
-        "viral": BASE_DIR / "Viral" / "saved_viral_models",
-        "parasitic": BASE_DIR / "Parastic_Skin_Disease" / "checkpoints",
-        "fungal": BASE_DIR / "fungal" / "trained_model.pth",
-        "bacterial": BASE_DIR / "Bacterial_Skin_Disease" / "bacterial_model.pth",
-    }
-)
+predictor = UnifiedSkinPredictor(BASE_DIR / "unified_skin_model.pth")
 symptom_engine = SymptomRefinementEngine(BASE_DIR / "Symptoms")
 
 
@@ -57,8 +49,8 @@ app.add_middleware(
 def root():
     return {
         "status": "ok",
-        "message": "Integrated 4-model prediction API running",
-        "aggregation_method": "fedavg_label_probabilities",
+        "message": "Unified skin disease prediction API running",
+        "aggregation_method": "unified_8_class_classifier",
     }
 
 

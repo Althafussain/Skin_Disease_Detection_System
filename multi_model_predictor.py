@@ -107,7 +107,7 @@ def _to_topk(prob_map: Mapping[str, float], k: int) -> list:
     return result
 
 
-class MultiModelFedAvgPredictor:
+class MultiModelSpecialistPredictor:
     def __init__(
         self,
         model_paths: Optional[Mapping[str, str | Path]] = None,
@@ -134,6 +134,7 @@ class MultiModelFedAvgPredictor:
     def predict_from_bytes(self, image_bytes: bytes, topk: int = 5) -> Dict[str, Any]:
         per_model_predictions: Dict[str, Dict[str, Any]] = {}
         per_model_probabilities: Dict[str, Dict[str, float]] = {}
+        model_warnings: Dict[str, str] = {}
 
         for client_name, predictor in CLIENT_PREDICTORS.items():
             prediction = predictor(
@@ -141,27 +142,54 @@ class MultiModelFedAvgPredictor:
                 model_path=self.model_paths[client_name],
                 topk=50,  # 50 is safely above current class counts and returns full local distribution.
             )
+
+            local_topk = prediction.get("topk", [])
+            if prediction.get("warning"):
+                model_warnings[client_name] = str(prediction["warning"])
+            elif not isinstance(local_topk, list) or len(local_topk) < 2:
+                model_warnings[client_name] = (
+                    "This classifier has fewer than two output classes and cannot distinguish diseases. "
+                    "Retrain it with at least two representative classes."
+                )
+                prediction = {
+                    **prediction,
+                    "prediction": None,
+                    "confidence": 0.0,
+                    "topk": [],
+                    "warning": model_warnings[client_name],
+                }
+            elif prediction.get("prediction") == "Skin not found":
+                model_warnings[client_name] = (
+                    "This classifier did not find a skin condition with sufficient confidence."
+                )
+
             per_model_predictions[client_name] = prediction
-            per_model_probabilities[client_name] = _probability_map_from_prediction(prediction)
+            if client_name not in model_warnings:
+                per_model_probabilities[client_name] = _probability_map_from_prediction(prediction)
 
-        fedavg_probs = fedavg_label_probabilities(
-            per_model_probabilities,
-            client_weights=self.client_weights,
-            normalize_output=True,
-        )
-        fedavg_topk = _to_topk(fedavg_probs, topk)
+        if per_model_probabilities:
+            ensemble_probs = fedavg_label_probabilities(
+                per_model_probabilities,
+                client_weights=self.client_weights,
+                normalize_output=True,
+            )
+            ensemble_topk = _to_topk(ensemble_probs, topk)
+        else:
+            ensemble_topk = []
 
-        best_label = fedavg_topk[0]["prediction"] if fedavg_topk else None
-        best_confidence = fedavg_topk[0]["confidence"] if fedavg_topk else 0.0
+        best_label = ensemble_topk[0]["prediction"] if ensemble_topk else None
+        best_confidence = ensemble_topk[0]["confidence"] if ensemble_topk else 0.0
 
         return {
             "prediction": best_label,
             "confidence": float(best_confidence),
-            "topk": fedavg_topk,
-            "method": "fedavg_label_probabilities",
+            "topk": ensemble_topk,
+            "method": "specialist_probability_ensemble",
+            "active_models": list(per_model_probabilities),
+            "model_warnings": model_warnings,
             "client_weights": self.client_weights
             if self.client_weights is not None
-            else {name: 1.0 for name in CLIENT_PREDICTORS},
+            else {name: 1.0 for name in per_model_probabilities},
             "labels_by_model": self.get_label_catalog(),
             "model_paths": {name: str(path) for name, path in self.model_paths.items()},
             "model_predictions": per_model_predictions,
@@ -169,7 +197,7 @@ class MultiModelFedAvgPredictor:
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run integrated 4-model prediction with FedAvg aggregation.")
+    parser = argparse.ArgumentParser(description="Run integrated specialist-model prediction.")
     parser.add_argument("--image", required=True, help="Path to image file.")
     parser.add_argument("--topk", type=int, default=5, help="Top-k labels to return from FedAvg output.")
     parser.add_argument("--viral-model", default=None, help="Viral model path or directory.")
@@ -185,7 +213,7 @@ def main() -> None:
     if not image_path.exists():
         raise FileNotFoundError(f"Input image not found: {image_path}")
 
-    predictor = MultiModelFedAvgPredictor(
+    predictor = MultiModelSpecialistPredictor(
         model_paths={
             "viral": args.viral_model,
             "parasitic": args.parasitic_model,
@@ -195,6 +223,9 @@ def main() -> None:
     )
     result = predictor.predict_from_bytes(image_path.read_bytes(), topk=max(1, args.topk))
     print(json.dumps(result, indent=2))
+
+
+MultiModelFedAvgPredictor = MultiModelSpecialistPredictor
 
 
 if __name__ == "__main__":

@@ -101,6 +101,21 @@ class ComponentSmokeTests(unittest.TestCase):
             result = predict_parastic_from_bytes(_make_image_bytes(), model_path=checkpoint_path, topk=3)
             self.assertTrue({"prediction", "confidence", "topk"} <= set(result.keys()))
 
+    def test_single_class_parasitic_checkpoint_is_not_reported_as_a_prediction(self):
+        classes = ["PA-cutaneous-larva-migrans"]
+        model = build_parasitic_model(num_classes=len(classes), train_from_scratch=True)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            checkpoint_path = Path(tmp_dir) / "parasitic_single_class.pth"
+            _save_checkpoint(model, checkpoint_path, classes)
+
+            result = predict_parastic_from_bytes(_make_image_bytes(), model_path=checkpoint_path)
+
+        self.assertIsNone(result["prediction"])
+        self.assertEqual(result["confidence"], 0.0)
+        self.assertEqual(result["topk"], [])
+        self.assertIn("fewer than two output classes", result["warning"])
+
     def test_fungal_build_forward_checkpoint_and_prediction_schema(self):
         classes = ["FU-athlete-foot", "FU-nail-fungus", "FU-ringworm", "None"]
         model = build_fungal_model(num_classes=len(classes), train_from_scratch=True)
